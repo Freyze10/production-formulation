@@ -1,32 +1,435 @@
-# main_window.py
 import sys
 from datetime import datetime
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QLabel, QLineEdit, QPushButton, QSizePolicy, QTabWidget,
                              QTableWidget, QTableWidgetItem, QHeaderView, QSpacerItem,
                              QMenu, QMenuBar, QStatusBar, QCheckBox, QMessageBox,
-                             QDateEdit, QAbstractItemView)
-from PyQt6.QtCore import Qt, QSize, QDate
-from PyQt6.QtGui import QFont, QColor, QPixmap, QIcon
+                             QDateEdit, QAbstractItemView, QFrame, QScrollArea, QComboBox,
+                             QFormLayout, QTextEdit)
+from PyQt6.QtCore import Qt, QSize, QDate, QPropertyAnimation, QEasingCurve
+from PyQt6.QtGui import QFont, QColor, QPixmap, QIcon, QPalette
 from qtawesome import icon  # QtAwesome for Font Awesome icons
 
-from production_tab.Auto_generate import AutoGenerateTab
+
+class ModernButton(QPushButton):
+    """Custom modern button with hover effect."""
+
+    def __init__(self, text, primary=False):
+        super().__init__(text)
+        self.primary = primary
+        self.setup_style()
+
+    def setup_style(self):
+        if self.primary:
+            self.setStyleSheet("""
+                QPushButton {
+                    background-color: #2196F3;
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    padding: 8px 16px;
+                    font-weight: 600;
+                    font-size: 9pt;
+                }
+                QPushButton:hover {
+                    background-color: #1976D2;
+                }
+                QPushButton:pressed {
+                    background-color: #0D47A1;
+                }
+            """)
+        else:
+            self.setStyleSheet("""
+                QPushButton {
+                    background-color: white;
+                    color: #424242;
+                    border: 1px solid #E0E0E0;
+                    border-radius: 6px;
+                    padding: 8px 16px;
+                    font-weight: 500;
+                    font-size: 9pt;
+                }
+                QPushButton:hover {
+                    background-color: #F5F5F5;
+                    border-color: #BDBDBD;
+                }
+                QPushButton:pressed {
+                    background-color: #EEEEEE;
+                }
+            """)
 
 
-# Import the separate tab class
+class AutoGenerateTab(QWidget):
+    def __init__(self, username, current_date, main_window):
+        super().__init__()
+        self.username = username
+        self.current_date = current_date
+        self.main_window = main_window
+        self.formulation_data = self.load_formulation_data()
+        self.setup_ui()
+
+    def load_formulation_data(self):
+        """Load sample formulation data."""
+        return [
+            ["B107", "2.500000", "0.000000", "2.5000000", "0.025000", "2.475000"],
+            ["B37", "4.000000", "0.000000", "1.5000000", "0.015000", "1.485000"],
+            ["L28", "5.000000", "0.000000", "1.0000000", "0.010000", "0.990000"]
+        ]
+
+    def setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 10, 20, 10)
+        layout.setSpacing(8)
+
+        # Title Card
+        title_card = QFrame()
+        title_card.setObjectName("card")
+        title_layout = QHBoxLayout(title_card)
+        title_layout.setContentsMargins(20, 8, 20, 8)
+
+        # Main Content Layout
+        main_content = QHBoxLayout()
+        main_content.setSpacing(10)
+
+        # Middle: Form Fields Card
+        middle_card = QFrame()
+        middle_card.setObjectName("card")
+        middle_layout = QVBoxLayout(middle_card)
+        middle_layout.setContentsMargins(15, 15, 15, 15)
+        middle_layout.setSpacing(5)
+
+        form_title = QLabel("Form Details")
+        form_title.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        form_title.setStyleSheet("color: #1976D2;")
+        middle_layout.addWidget(form_title, 2)
+
+        form_widget = QWidget()
+        form_layout = QFormLayout(form_widget)
+        form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+        form_layout.setHorizontalSpacing(8)
+        form_layout.setVerticalSpacing(3)
+        form_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Field styling adjusted to match theme
+        field_style = "background-color: #FFF3E0; border: 1px solid #FF9800; border-radius: 4px; padding: 4px;"
+        white_field_style = "background-color: #FAFAFA; border: 1px solid #E0E0E0; border-radius: 4px; padding: 4px;"
+        field_width = 180
+        field_height = 24
+
+        # Product Code
+        product_code_layout = QHBoxLayout()
+        self.product_code_combo = QComboBox()
+        self.product_code_combo.setEditable(True)
+        self.product_code_combo.setCurrentText("BA0830E")
+        self.product_code_combo.setFixedSize(field_width, field_height)
+        self.product_code_combo.setStyleSheet(field_style)
+        product_code_layout.addWidget(self.product_code_combo)
+        product_code_layout.addStretch()
+        form_layout.addRow("PRODUCT CODE *", product_code_layout)
+
+        # Product Color
+        self.product_color_edit = QLineEdit("BLUE")
+        self.product_color_edit.setFixedSize(field_width, field_height)
+        self.product_color_edit.setStyleSheet(white_field_style)
+        form_layout.addRow("PRODUCT COLOR", self.product_color_edit)
+
+        # Dosage and LD(%)
+        dosage_layout = QHBoxLayout()
+        dosage_layout.setSpacing(5)
+        self.dosage_edit = QLineEdit("100.00000")
+        self.dosage_edit.setFixedSize(100, field_height)
+        self.dosage_edit.setStyleSheet(field_style)
+        dosage_layout.addWidget(self.dosage_edit)
+
+        ld_label = QLabel("LD (%)")
+        ld_label.setFont(QFont("Segoe UI", 8))
+        dosage_layout.addWidget(ld_label)
+
+        self.ld_edit = QLineEdit("0.40000")
+        self.ld_edit.setFixedSize(80, field_height)
+        self.ld_edit.setStyleSheet(white_field_style)
+        dosage_layout.addWidget(self.ld_edit)
+        dosage_layout.addStretch()
+        form_layout.addRow("DOSAGE *", dosage_layout)
+
+        # Customer
+        self.customer_combo = QComboBox()
+        self.customer_combo.setEditable(True)
+        self.customer_combo.setCurrentText("Una Internationale")
+        self.customer_combo.setFixedSize(field_width, field_height)
+        self.customer_combo.setStyleSheet(field_style)
+        form_layout.addRow("CUSTOMER *", self.customer_combo)
+
+        # Lot No.
+        self.lot_no_combo = QComboBox()
+        self.lot_no_combo.setEditable(True)
+        self.lot_no_combo.setFixedSize(field_width, field_height)
+        self.lot_no_combo.setStyleSheet(field_style)
+        form_layout.addRow("LOT NO. *", self.lot_no_combo)
+
+        # Tentative Production Date
+        self.tentative_date_edit = QLineEdit("  /  /")
+        self.tentative_date_edit.setFixedSize(field_width, field_height)
+        self.tentative_date_edit.setStyleSheet(field_style)
+        form_layout.addRow("TENTATIVE PRODUCTION DATE *", self.tentative_date_edit)
+
+        # Confirmation Date for Inventory Only
+        self.confirm_date_edit = QLineEdit("  /  /")
+        self.confirm_date_edit.setFixedSize(field_width, field_height)
+        self.confirm_date_edit.setStyleSheet(white_field_style)
+        form_layout.addRow("CONFIRMATION DATE FOR INVENTORY ONLY *", self.confirm_date_edit)
+
+        # Order Form No.
+        self.order_form_combo = QComboBox()
+        self.order_form_combo.setEditable(True)
+        self.order_form_combo.setFixedSize(field_width, field_height)
+        self.order_form_combo.setStyleSheet(field_style)
+        form_layout.addRow("ORDER FORM NO. *", self.order_form_combo)
+
+        # Colormatch No.
+        self.colormatch_no_edit = QLineEdit("-")
+        self.colormatch_no_edit.setFixedSize(field_width, field_height)
+        self.colormatch_no_edit.setStyleSheet(white_field_style)
+        form_layout.addRow("COLORMATCH NO.", self.colormatch_no_edit)
+
+        # Matched Date
+        self.matched_date_edit = QLineEdit("02/14/2025")
+        self.matched_date_edit.setFixedSize(field_width, field_height)
+        self.matched_date_edit.setStyleSheet(white_field_style)
+        form_layout.addRow("MATCHED DATE", self.matched_date_edit)
+
+        # Formulation ID
+        self.formulation_id_edit = QLineEdit("16026")
+        self.formulation_id_edit.setFixedSize(field_width, field_height)
+        self.formulation_id_edit.setStyleSheet(white_field_style)
+        form_layout.addRow("FORMULATION ID", self.formulation_id_edit)
+
+        # Mixing Time
+        self.mixing_time_edit = QLineEdit("-")
+        self.mixing_time_edit.setFixedSize(field_width, field_height)
+        self.mixing_time_edit.setStyleSheet(white_field_style)
+        form_layout.addRow("MIXING TIME", self.mixing_time_edit)
+
+        # Machine No.
+        self.machine_no_edit = QLineEdit()
+        self.machine_no_edit.setFixedSize(field_width, field_height)
+        self.machine_no_edit.setStyleSheet(white_field_style)
+        form_layout.addRow("MACHINE NO.", self.machine_no_edit)
+
+        # QTY. REQ.
+        self.qty_req_edit = QLineEdit("0.0000000")
+        self.qty_req_edit.setFixedSize(field_width, field_height)
+        self.qty_req_edit.setStyleSheet(field_style)
+        form_layout.addRow("QTY. REQ. *", self.qty_req_edit)
+
+        # QTY. PER BATCH
+        self.qty_per_batch_edit = QLineEdit("0.0000000")
+        self.qty_per_batch_edit.setFixedSize(field_width, field_height)
+        self.qty_per_batch_edit.setStyleSheet(field_style)
+        form_layout.addRow("QTY. PER BATCH *", self.qty_per_batch_edit)
+
+        # Prepared By
+        self.prepared_by_combo = QComboBox()
+        self.prepared_by_combo.setEditable(True)
+        self.prepared_by_combo.setFixedSize(field_width, field_height)
+        self.prepared_by_combo.setStyleSheet(field_style)
+        form_layout.addRow("PREPARED BY *", self.prepared_by_combo)
+
+        # Notes
+        self.notes_edit = QTextEdit()
+        self.notes_edit.setFixedHeight(40)
+        self.notes_edit.setStyleSheet(white_field_style)
+        form_layout.addRow("NOTES", self.notes_edit)
+
+        middle_layout.addWidget(form_widget)
+        main_content.addWidget(middle_card, 3)
+
+        # Right Side: Form Type, Production ID, and Materials Card
+        right_card = QFrame()
+        right_card.setObjectName("card")
+        right_layout = QVBoxLayout(right_card)
+        right_layout.setContentsMargins(15, 15, 15, 15)
+        right_layout.setSpacing(8)
+
+        # Form Type Row
+        form_type_layout = QHBoxLayout()
+        form_type_label = QLabel("FORM TYPE")
+        form_type_label.setFont(QFont("Segoe UI", 9))
+        form_type_layout.addWidget(form_type_label)
+
+        self.form_type_combo = QComboBox()
+        self.form_type_combo.setFixedSize(150, field_height)
+        self.form_type_combo.setStyleSheet(field_style)
+        form_type_layout.addWidget(self.form_type_combo)
+        form_type_layout.addStretch()
+        right_layout.addLayout(form_type_layout)
+
+        # Production ID
+        prod_id_layout = QHBoxLayout()
+        prod_id_label = QLabel("PRODUCTION ID")
+        prod_id_label.setFont(QFont("Segoe UI", 9))
+        prod_id_layout.addWidget(prod_id_label)
+
+        self.production_id_label = QLabel("0098744")
+        self.production_id_label.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
+        self.production_id_label.setStyleSheet("color: #2196F3;")
+        prod_id_layout.addWidget(self.production_id_label)
+        prod_id_layout.addStretch()
+        right_layout.addLayout(prod_id_layout)
+
+        # Materials Table
+        headers = ["Material Name", "Large Scale (KG.)", "Small Scale (G.)", "Total Weight (KG.)", "Total Loss (KG.)", "Total Consumption (KG.)"]
+        self.materials_table = QTableWidget()
+        self.materials_table.setRowCount(len(self.formulation_data))
+        self.materials_table.setColumnCount(6)
+        self.materials_table.setHorizontalHeaderLabels(headers)
+
+        # Modern table styling
+        self.materials_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.materials_table.verticalHeader().setVisible(False)
+        self.materials_table.setAlternatingRowColors(True)
+        self.materials_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.materials_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.materials_table.setFont(QFont("Segoe UI", 9))
+        self.materials_table.horizontalHeader().setFont(QFont("Segoe UI", 7, QFont.Weight.Bold))
+        self.materials_table.setMinimumHeight(250)
+        self.materials_table.horizontalHeader().setStyleSheet("""
+            QHeaderView::section {
+                background-color: #1976D2;
+                color: white;
+                padding: 4px;
+                border: none;
+                font-weight: bold;
+            }
+        """)
+
+        # Populate table
+        for row, row_data in enumerate(self.formulation_data):
+            for col, item_data in enumerate(row_data):
+                item = QTableWidgetItem(str(item_data))
+                item.setFont(QFont("Segoe UI", 9))
+                self.materials_table.setItem(row, col, item)
+
+        right_layout.addWidget(self.materials_table)
+
+        # Bottom stats section
+        stats_layout = QVBoxLayout()
+        stats_layout.setSpacing(3)
+
+        items_label = QLabel("NO. OF ITEMS :  0")
+        items_label.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+        stats_layout.addWidget(items_label)
+
+        weight_label = QLabel("TOTAL WEIGHT  : 0.000000")
+        weight_label.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+        stats_layout.addWidget(weight_label)
+
+        fg_label = QLabel("FG in 1D (FOR WH) ONLY")
+        fg_label.setFont(QFont("Segoe UI", 7))
+        stats_layout.addWidget(fg_label)
+
+        right_layout.addLayout(stats_layout)
+        right_layout.addStretch()
+
+        main_content.addWidget(right_card, 7)
+
+        layout.addLayout(main_content)
+
+        # Cancel Button
+        cancel_btn = ModernButton("CLICK HERE TO CANCEL THIS PRODUCTION")
+        cancel_btn.setStyleSheet("QPushButton { color: #2196F3; background: transparent; border: none; text-decoration: underline; }")
+        layout.addWidget(cancel_btn, alignment=Qt.AlignmentFlag.AlignRight)
+
+        # Encoded By Section Card
+        encoded_card = QFrame()
+        encoded_card.setObjectName("card")
+        encoded_layout = QHBoxLayout(encoded_card)
+        encoded_layout.setContentsMargins(20, 8, 20, 8)
+
+        encoded_by_label = QLabel("ENCODED BY")
+        encoded_by_label.setFont(QFont("Segoe UI", 9))
+        encoded_layout.addWidget(encoded_by_label)
+
+        prod_confirm_label = QLabel("PRODUCTION CONFIRMATION ENCODED ON")
+        prod_confirm_label.setFont(QFont("Segoe UI", 9))
+        encoded_layout.addWidget(prod_confirm_label)
+
+        self.confirm_encoded_edit = QLineEdit("0000000")
+        self.confirm_encoded_edit.setFixedSize(120, field_height)
+        self.confirm_encoded_edit.setStyleSheet(field_style)
+        encoded_layout.addWidget(self.confirm_encoded_edit)
+
+        encoded_layout.addStretch()
+        layout.addWidget(encoded_card)
+
+        # Bottom Section with Date and Buttons Card
+        bottom_card = QFrame()
+        bottom_card.setObjectName("card")
+        bottom_layout = QHBoxLayout(bottom_card)
+        bottom_layout.setContentsMargins(20, 8, 20, 8)
+
+        date_prod_layout = QVBoxLayout()
+        date_label = QLabel(self.current_date)
+        date_label.setFont(QFont("Segoe UI", 8))
+        date_prod_layout.addWidget(date_label)
+
+        prod_encoded_layout = QHBoxLayout()
+        prod_encoded_label = QLabel("PRODUCTION ENCODED ON")
+        prod_encoded_label.setFont(QFont("Segoe UI", 8))
+        prod_encoded_layout.addWidget(prod_encoded_label)
+
+        self.prod_encoded_edit = QLineEdit("  /  /")
+        self.prod_encoded_edit.setFixedSize(100, field_height)
+        self.prod_encoded_edit.setStyleSheet(white_field_style)
+        prod_encoded_layout.addWidget(self.prod_encoded_edit)
+        prod_encoded_layout.addStretch()
+
+        date_prod_layout.addLayout(prod_encoded_layout)
+        bottom_layout.addLayout(date_prod_layout, 3)
+
+        bottom_layout.addStretch()
+
+        # Action Buttons
+        btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(3)
+
+        buttons = [
+            ("GENERATE", True),
+            ("TUMBLER", False),
+            ("GENERATE ADVANCE", False),
+            ("PRINT", False),
+            ("NEW", False),
+            ("CLOSE", False)
+        ]
+
+        for btn_text, is_primary in buttons:
+            btn_width = 120 if btn_text == "GENERATE ADVANCE" else 80 if btn_text == "GENERATE" or btn_text == "TUMBLER" else 60
+            btn = ModernButton(btn_text, primary=is_primary)
+            btn.setFixedSize(btn_width, 25)
+            if btn_text == "CLOSE":
+                btn.clicked.connect(self.main_window.close)
+            btn_layout.addWidget(btn)
+
+        bottom_layout.addLayout(btn_layout)
+        layout.addWidget(bottom_card)
+
 
 class MainApplicationWindow(QMainWindow):
     def __init__(self, username="User"):
         super().__init__()
-        self.setWindowTitle("MASTERBATCH PHILIPPINES INC.")
-        self.setGeometry(100, 50, 1200, 800) # Adjusted size to fit more content
+        self.setWindowTitle("MASTERBATCH PHILIPPINES INC. - Production Management System")
+        self.setGeometry(100, 50, 1600, 900)
         self.username = username
-        self.current_date = datetime.now().strftime("%m/%d/%Y %I:%M:%S %p")  # Use current date/time
-        self.production_data = self.load_production_data()  # Load sample data
+        self.current_date = datetime.now().strftime("%m/%d/%Y %I:%M:%S %p")
+        self.production_data = self.load_production_data()
         self.formulation_data = self.load_formulation_data()
         self.setup_ui()
         self.apply_styles()
         self.center_window()
+
+    def switch_to_tab(self, index):
+        if hasattr(self, 'tab_widget'):
+            self.tab_widget.setCurrentIndex(index)
 
     def center_window(self):
         """Center the window on the screen."""
@@ -37,22 +440,27 @@ class MainApplicationWindow(QMainWindow):
         self.move(center_x, center_y)
 
     def load_production_data(self):
-        """Load sample production data from screenshot - can be replaced with DB query."""
+        """Load sample production data."""
         return [
-            ["10/04/25", "Everbright & Twine", "IA17079E", "GOLDEN BROWN", "16A01", "15.000000"],
-            ["10/04/25", "Everbright Plastics Industry Inc.", "KA4795E", "FUCHSIA PINK", "15B7A-15A3N", "800.000000"],
-            ["10/04/25", "FILIPINAS PLASTIC CORP. COMMODITIES, INC", "DP-1234E", "VIOLET", "820X-15A3N", "500.000000"],
-            ["10/04/25", "TRADSPHERE PLASTIC CONTAINERS, INC", "YP-7894E", "YELLOW", "820X A", "1.500000"],
-            ["10/04/25", "TRADSPHERE INDUSTRIAL COMMODITIES, INC", "DP-1044E", "LIGHT BLUE", "820X", "1.000000"],
-            ["10/04/25", "PLASTICO, INC", "PP-6307E", "PEARL GREEN", "820X", "3.000000"]
+            ["10/06/25", "TRADESPHERE INDUSTRIAL COMMODITIES, INC.", "PP-W9845E", "White", "8211X", "2.5000000"],
+            ["10/06/25", "PLACEL MFG. CO., INC.", "PP-V0669E", "PEARL VIOLET", "8210X", "1.0200000"],
+            ["10/06/25", "In House", "VA4086E", "VIOLET", "1619AN", "125.0000000"],
+            ["10/03/25", "ROWELL LITHOGRAPHY & METAL CLOSURE, INC.", "DE-B17719E", "BLUE", "8196X", "5.0000000"],
+            ["10/06/25", "In House", "VA4086E", "VIOLET", "1618AN", "70.6200000"],
+            ["10/06/25", "In House", "VA4086E", "VIOLET", "1617AN", "50.0000000"],
+            ["10/06/25", "TRADESPHERE INDUSTRIAL COMMODITIES, INC.", "DP-K16339E", "PINK", "8209X", "1.0400000"],
+            ["10/04/25", "Everbright Net & Twine", "IA1770E", "GOLDEN BROWN", "1616AN", "15.0000000"],
+            ["10/04/25", "Everbright Net & Twine", "IA1770E", "GOLDEN BROWN", "1584AN-1615AN", "800.0000000"],
+            ["10/04/25", "EVERGOOD PLASTIC INDUSTRY INC.", "KA4595E", "FUCHSIA PINK", "1574AN-1583AN", "500.0000000"],
+            ["10/04/25", "FILIPINAS PLASTIC CORP.", "DU-B12434E", "BLUE", "8208X", "40.0000000"]
         ]
 
     def load_formulation_data(self):
-        """Load sample formulation data from screenshot."""
+        """Load sample formulation data."""
         return [
-            ["G38", "0.310000", "0.000000", "3.680000", "0.031800", "3.648200"],
-            ["G89", "1.000000", "5.000000", "6.000000", "0.106900", "5.893100"],
-            ["I89", "0.500000", "2.500000", "3.000000", "0.050000", "2.950000"]
+            ["B107", "2.500000", "0.000000", "2.5000000", "0.025000", "2.475000"],
+            ["B37", "4.000000", "0.000000", "1.5000000", "0.015000", "1.485000"],
+            ["L28", "5.000000", "0.000000", "1.0000000", "0.010000", "0.990000"]
         ]
 
     def setup_ui(self):
@@ -62,612 +470,686 @@ class MainApplicationWindow(QMainWindow):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
-        main_layout.setContentsMargins(0, 0, 0, 0) # Remove margins for cleaner look
+        main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        # --- Top Header Section (USER: and Search) ---
-        header_widget = QWidget()
-        header_widget.setObjectName("header_widget")  # For styling
-        header_layout = QHBoxLayout(header_widget)
-        header_layout.setContentsMargins(10, 5, 10, 5)
-        header_layout.setSpacing(10)
-        header_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        # Modern Header
+        header = self.create_header()
+        main_layout.addWidget(header)
 
-        user_label = QLabel(f"USER: {self.username}")
-        user_label.setFont(QFont("Arial", 10, QFont.Weight.Bold))
-        header_layout.addWidget(user_label)
-
-        header_layout.addSpacerItem(QSpacerItem(20, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)) # Spacer
-
-        search_edit = QLineEdit()
-        search_edit.setPlaceholderText("ID NUMBER, SEARCH")
-        search_edit.setFixedSize(200, 25)
-        search_edit.setFont(QFont("Arial", 9))
-        search_edit.textChanged.connect(self.on_search_changed)  # Connect search functionality
-        header_layout.addWidget(search_edit)
-
-        search_button = QPushButton("SEARCH")
-        search_button.setFixedSize(80, 25)
-        search_button.setFont(QFont("Arial", 9, QFont.Weight.Bold))
-        search_button.clicked.connect(self.perform_search)
-        header_layout.addWidget(search_button)
-
-        main_layout.addWidget(header_widget)
-
-        # --- Tab Widget for Main Content ---
+        # Tab Widget
         self.tab_widget = QTabWidget()
-        self.tab_widget.setFont(QFont("Arial", 10, QFont.Weight.Bold))
-        self.tab_widget.currentChanged.connect(self.on_tab_changed)  # Handle tab switch
-        self.setup_production_records_tab()
-        self.setup_auto_generate_tab()
+        self.tab_widget.setTabPosition(QTabWidget.TabPosition.North)
+
+        # First Tab: Production Overview
+        tab1 = QWidget()
+        tab1_layout = QVBoxLayout(tab1)
+        tab1_layout.setContentsMargins(20, 10, 20, 10)
+        tab1_layout.setSpacing(10)
+
+        # Search and Filter Card
+        search_card = self.create_search_card()
+        tab1_layout.addWidget(search_card)
+
+        # Main Content Area
+        main_content = QHBoxLayout()
+        main_content.setSpacing(10)
+
+        # Production Table Card
+        prod_card = self.create_production_card()
+        main_content.addWidget(prod_card, 8)
+
+        # Side Panel
+        side_panel = self.create_side_panel()
+        main_content.addWidget(side_panel, 2)
+
+        tab1_layout.addLayout(main_content)
+
+        # Materials Section
+        materials_card = self.create_materials_card()
+        tab1_layout.addWidget(materials_card)
+
+        # Bottom Controls
+        bottom_controls = self.create_bottom_controls()
+        tab1_layout.addWidget(bottom_controls)
+
+        self.tab_widget.addTab(tab1, "Production Records")
+
+        # Second Tab: Auto Generate
+        tab2 = AutoGenerateTab(self.username, self.current_date, self)
+        self.tab_widget.addTab(tab2, "Auto Generate")
+
         main_layout.addWidget(self.tab_widget)
 
-        # --- Bottom Control Panel ---
-        bottom_panel = QWidget()
-        bottom_layout = QVBoxLayout(bottom_panel)
-        bottom_layout.setContentsMargins(10, 10, 10, 10)
-        bottom_layout.setSpacing(5)
+    def create_header(self):
+        """Create modern header with gradient."""
+        header = QFrame()
+        header.setObjectName("headerFrame")
+        header.setFixedHeight(80)
 
-        # First row of controls
-        control_row1_layout = QHBoxLayout()
-        control_row1_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        layout = QHBoxLayout(header)
+        layout.setContentsMargins(30, 10, 30, 10)
 
-        self.footer_label_left = QLabel(f"PRODUCTION ENCODED ON {self.current_date}")
-        self.footer_label_left.setFont(QFont("Arial", 8))
-        control_row1_layout.addWidget(self.footer_label_left)
-        control_row1_layout.addSpacing(20)
+        # Left: Logo and Title
+        left_layout = QVBoxLayout()
+        title = QLabel("Production Management")
+        title.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
+        title.setStyleSheet("color: white;")
+        left_layout.addWidget(title)
 
-        load_encoded_chk = QCheckBox("LOAD ENCODED ITEMS (for previous data)")
-        load_encoded_chk.setFont(QFont("Arial", 8))
-        load_encoded_chk.stateChanged.connect(self.on_checkbox_changed)
-        control_row1_layout.addWidget(load_encoded_chk)
+        subtitle = QLabel("Auto Generate Records - With Consumption")
+        subtitle.setFont(QFont("Segoe UI", 10))
+        subtitle.setStyleSheet("color: rgba(255, 255, 255, 0.8);")
+        left_layout.addWidget(subtitle)
 
-        date_old_label = QLabel("DATE OLD:")
-        control_row1_layout.addWidget(date_old_label)
-        date_old_edit = QLineEdit("10/04/2025 03:18 PM")
-        date_old_edit.setFixedSize(120, 20)
-        date_old_edit.setFont(QFont("Arial", 8))
-        control_row1_layout.addWidget(date_old_edit)
+        layout.addLayout(left_layout)
+        layout.addStretch()
 
-        cust_z_label = QLabel("CUST NAME Z:")
-        control_row1_layout.addWidget(cust_z_label)
-        cust_z_edit = QLineEdit()
-        cust_z_edit.setFixedSize(80, 20)
-        cust_z_edit.setFont(QFont("Arial", 8))
-        control_row1_layout.addWidget(cust_z_edit)
+        # Right: User info
+        user_frame = QFrame()
+        user_frame.setStyleSheet("""
+            QFrame {
+                background-color: rgba(255, 255, 255, 0.15);
+                border-radius: 8px;
+                padding: 5px 15px;
+            }
+        """)
+        user_layout = QHBoxLayout(user_frame)
+        user_layout.setSpacing(10)
 
-        prod_z_label = QLabel("PROD CODE Z:")
-        control_row1_layout.addWidget(prod_z_label)
-        prod_z_edit = QLineEdit()
-        prod_z_edit.setFixedSize(80, 20)
-        prod_z_edit.setFont(QFont("Arial", 8))
-        control_row1_layout.addWidget(prod_z_edit)
+        user_icon = QLabel("👤")
+        user_icon.setFont(QFont("Segoe UI", 16))
+        user_layout.addWidget(user_icon)
 
-        export_jbwy_btn = QPushButton("EXPORT JBWY")
-        export_jbwy_btn.setFixedSize(100, 25)
-        export_jbwy_btn.setFont(QFont("Arial", 8, QFont.Weight.Bold))
-        export_jbwy_btn.clicked.connect(lambda: self.export_data("JBWY"))
-        control_row1_layout.addWidget(export_jbwy_btn)
+        user_info = QVBoxLayout()
+        user_name = QLabel(self.username)
+        user_name.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        user_name.setStyleSheet("color: white;")
+        user_info.addWidget(user_name)
 
-        control_row1_layout.addStretch()
+        user_date = QLabel(self.current_date)
+        user_date.setFont(QFont("Segoe UI", 8))
+        user_date.setStyleSheet("color: rgba(255, 255, 255, 0.7);")
+        user_info.addWidget(user_date)
 
-        bottom_layout.addLayout(control_row1_layout)
+        user_layout.addLayout(user_info)
+        layout.addWidget(user_frame)
 
-        # Second row of controls
-        control_row2_layout = QHBoxLayout()
-        control_row2_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        return header
 
-        load_cancelled_chk = QCheckBox("LOAD CANCELLED ITEMS (for viewing only)")
-        load_cancelled_chk.setFont(QFont("Arial", 8))
-        load_cancelled_chk.stateChanged.connect(self.on_checkbox_changed)
-        control_row2_layout.addWidget(load_cancelled_chk)
+    def create_search_card(self):
+        """Create search and filter card."""
+        card = QFrame()
+        card.setObjectName("card")
+        layout = QHBoxLayout(card)
+        layout.setContentsMargins(20, 12, 20, 12)
+        layout.setSpacing(15)
 
-        control_row2_layout.addSpacing(20)
+        # LOT NO Display
+        lot_label = QLabel("LOT NO:")
+        lot_label.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        layout.addWidget(lot_label)
 
-        # This part looks like a password input
-        export_password_label = QLabel("ADMIN PASSWORD")
-        export_password_label.setFont(QFont("Arial", 8))
-        control_row2_layout.addWidget(export_password_label)
+        self.lot_no_value = QLabel("8196X - ROWELL LITHOGRAPHY & METAL CLOSURE")
+        self.lot_no_value.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        self.lot_no_value.setStyleSheet("color: #2196F3;")
+        layout.addWidget(self.lot_no_value)
 
-        self.export_password_entry = QLineEdit()
-        self.export_password_entry.setEchoMode(QLineEdit.EchoMode.Password)
-        self.export_password_entry.setFixedSize(100, 20)
-        control_row2_layout.addWidget(self.export_password_entry)
+        layout.addStretch()
 
-        control_row2_layout.addStretch()
+        # Search Fields
+        search_layout = QHBoxLayout()
+        search_layout.setSpacing(10)
 
-        old_export_jbwy_btn = QPushButton("OLD EXPORT JBWY")
-        old_export_jbwy_btn.setFixedSize(120, 25)
-        old_export_jbwy_btn.setFont(QFont("Arial", 8, QFont.Weight.Bold))
-        old_export_jbwy_btn.clicked.connect(lambda: self.export_data("OLD JBWY"))
-        control_row2_layout.addWidget(old_export_jbwy_btn)
+        self.lot_number_edit = QLineEdit()
+        self.lot_number_edit.setPlaceholderText("🔍 Search by Lot Number...")
+        self.lot_number_edit.setFixedWidth(200)
+        self.lot_number_edit.setFixedHeight(36)
+        search_layout.addWidget(self.lot_number_edit)
 
-        bottom_layout.addLayout(control_row2_layout)
+        self.search_edit = QLineEdit()
+        self.search_edit.setPlaceholderText("🔍 Search anything...")
+        self.search_edit.setFixedWidth(200)
+        self.search_edit.setFixedHeight(36)
+        search_layout.addWidget(self.search_edit)
 
-        # Third row of controls (Date from, date to, Export, Refresh, View, Close)
-        control_row3_layout = QHBoxLayout()
-        control_row3_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        search_btn = ModernButton("Search", primary=True)
+        search_btn.setFixedHeight(36)
+        search_layout.addWidget(search_btn)
 
-        date_from_label = QLabel("DATE FROM: ")
-        date_from_label.setFont(QFont("Arial", 8))
-        control_row3_layout.addWidget(date_from_label)
+        layout.addLayout(search_layout)
+
+        return card
+
+    def create_production_card(self):
+        """Create production records table card."""
+        card = QFrame()
+        card.setObjectName("card")
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(20, 15, 20, 15)
+        layout.setSpacing(10)
+
+        # Header
+        header_layout = QHBoxLayout()
+        title = QLabel("📊 Production Records")
+        title.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        header_layout.addWidget(title)
+
+        header_layout.addStretch()
+
+        layout.addLayout(header_layout)
+
+        # Table
+        self.production_table = QTableWidget()
+        self.production_table.setRowCount(len(self.production_data))
+        self.production_table.setColumnCount(6)
+        self.production_table.setHorizontalHeaderLabels([
+            "Date", "Customer", "Product Code", "Color", "Lot No.", "Qty Produced"
+        ])
+
+        # Modern table styling
+        self.production_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.production_table.verticalHeader().setVisible(False)
+        self.production_table.setAlternatingRowColors(True)
+        self.production_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.production_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.production_table.setFont(QFont("Segoe UI", 9))
+        self.production_table.horizontalHeader().setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+        self.production_table.setMaximumHeight(250)
+
+        # Populate table
+        for row, row_data in enumerate(self.production_data):
+            for col, item_data in enumerate(row_data):
+                item = QTableWidgetItem(str(item_data))
+                item.setFont(QFont("Segoe UI", 9))
+                self.production_table.setItem(row, col, item)
+                if row == 3:  # Highlight selected row
+                    item.setBackground(QColor("#E3F2FD"))
+
+        layout.addWidget(self.production_table)
+
+        return card
+
+    def create_side_panel(self):
+        """Create side panel with stats and actions."""
+        panel = QFrame()
+        panel.setObjectName("sidePanel")
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(15, 10, 15, 10)
+        layout.setSpacing(10)
+
+        # Stats Card
+        stats_card = QFrame()
+        stats_card.setObjectName("statsCard")
+        stats_layout = QVBoxLayout(stats_card)
+        stats_layout.setContentsMargins(15, 10, 15, 10)
+        stats_layout.setSpacing(5)
+
+        stats_title = QLabel("📈 Statistics")
+        stats_title.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        stats_layout.addWidget(stats_title)
+
+        # Total records
+        total_label = QLabel("Total Records")
+        total_label.setFont(QFont("Segoe UI", 8))
+        total_label.setStyleSheet("color: #757575;")
+        stats_layout.addWidget(total_label)
+
+        total_value = QLabel(str(len(self.production_data)))
+        total_value.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
+        total_value.setStyleSheet("color: #2196F3;")
+        stats_layout.addWidget(total_value)
+
+        stats_layout.addSpacing(5)
+
+        # Total materials
+        mat_label = QLabel("Materials Used")
+        mat_label.setFont(QFont("Segoe UI", 8))
+        mat_label.setStyleSheet("color: #757575;")
+        stats_layout.addWidget(mat_label)
+
+        mat_value = QLabel(str(len(self.formulation_data)))
+        mat_value.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+        mat_value.setStyleSheet("color: #4CAF50;")
+        stats_layout.addWidget(mat_value)
+
+        stats_layout.addStretch()
+        layout.addWidget(stats_card)
+
+        # Quick Actions
+        actions_card = QFrame()
+        actions_card.setObjectName("card")
+        actions_layout = QVBoxLayout(actions_card)
+        actions_layout.setContentsMargins(15, 10, 15, 10)
+        actions_layout.setSpacing(8)
+
+        actions_title = QLabel("⚡ Quick Actions")
+        actions_title.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        actions_layout.addWidget(actions_title)
+
+        new_btn = ModernButton("➕ New Entry", primary=True)
+        actions_layout.addWidget(new_btn)
+
+        export_btn = ModernButton("📤 Export Data")
+        actions_layout.addWidget(export_btn)
+
+        refresh_btn = ModernButton("🔄 Refresh")
+        refresh_btn.clicked.connect(self.refresh_data)
+        actions_layout.addWidget(refresh_btn)
+
+        layout.addWidget(actions_card)
+
+        return panel
+
+    def create_materials_card(self):
+        """Create materials section."""
+        card = QFrame()
+        card.setObjectName("card")
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(20, 15, 20, 15)
+        layout.setSpacing(10)
+
+        # Header
+        title = QLabel("🧪 Material Composition")
+        title.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        layout.addWidget(title)
+
+        # Table
+        self.material_table = QTableWidget()
+        self.material_table.setRowCount(len(self.formulation_data))
+        self.material_table.setColumnCount(6)
+        self.material_table.setHorizontalHeaderLabels([
+            "Material", "Large Scale (KG)", "Small Scale (G)",
+            "Total Weight (KG)", "Total Loss (KG)", "Total Consumption (KG)"
+        ])
+
+        self.material_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.material_table.verticalHeader().setVisible(False)
+        self.material_table.setMaximumHeight(200)
+        self.material_table.setFont(QFont("Segoe UI", 9))
+        self.material_table.horizontalHeader().setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+
+        # Populate material table
+        for row, row_data in enumerate(self.formulation_data):
+            for col, item_data in enumerate(row_data):
+                item = QTableWidgetItem(str(item_data))
+                item.setFont(QFont("Segoe UI", 9))
+                self.material_table.setItem(row, col, item)
+
+        layout.addWidget(self.material_table)
+
+        return card
+
+    def create_bottom_controls(self):
+        """Create bottom control panel."""
+        panel = QFrame()
+        panel.setObjectName("card")
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(20, 12, 20, 12)
+        layout.setSpacing(8)
+
+        # Filters Row
+        filters_layout = QHBoxLayout()
+        filters_layout.setSpacing(15)
+
+        self.all_data_chk = QCheckBox("All Data")
+        filters_layout.addWidget(self.all_data_chk)
+
+        self.date_old_chk = QCheckBox("Date Old")
+        filters_layout.addWidget(self.date_old_chk)
+
+        self.date_new_chk = QCheckBox("Date New")
+        filters_layout.addWidget(self.date_new_chk)
+
+        self.cust_name_chk = QCheckBox("Customer A-Z")
+        filters_layout.addWidget(self.cust_name_chk)
+
+        self.prodcode_chk = QCheckBox("Product Code A-Z")
+        filters_layout.addWidget(self.prodcode_chk)
+
+        filters_layout.addStretch()
+
+        layout.addLayout(filters_layout)
+
+        # Date Range and Actions
+        actions_layout = QHBoxLayout()
+        actions_layout.setSpacing(10)
+
+        date_from_label = QLabel("From:")
+        date_from_label.setFont(QFont("Segoe UI", 9))
+        actions_layout.addWidget(date_from_label)
 
         self.date_from_edit = QDateEdit()
         self.date_from_edit.setCalendarPopup(True)
         self.date_from_edit.setDate(QDate.currentDate())
-        self.date_from_edit.setFixedSize(100, 25)
-        self.date_from_edit.dateChanged.connect(self.on_date_changed)
-        control_row3_layout.addWidget(self.date_from_edit)
+        self.date_from_edit.setFixedWidth(120)
+        actions_layout.addWidget(self.date_from_edit)
 
-        date_to_label = QLabel("DATE To: ")
-        date_to_label.setFont(QFont("Arial", 8))
-        control_row3_layout.addWidget(date_to_label)
+        date_to_label = QLabel("To:")
+        date_to_label.setFont(QFont("Segoe UI", 9))
+        actions_layout.addWidget(date_to_label)
 
         self.date_to_edit = QDateEdit()
         self.date_to_edit.setCalendarPopup(True)
         self.date_to_edit.setDate(QDate.currentDate())
-        self.date_to_edit.setFixedSize(100, 25)
-        self.date_to_edit.dateChanged.connect(self.on_date_changed)
-        control_row3_layout.addWidget(self.date_to_edit)
+        self.date_to_edit.setFixedWidth(120)
+        actions_layout.addWidget(self.date_to_edit)
 
-        export_button = QPushButton("EXPORT")
-        export_button.setFixedSize(80, 25)
-        export_button.setFont(QFont("Arial", 8, QFont.Weight.Bold))
-        export_button.clicked.connect(lambda: self.export_data("STANDARD"))
-        control_row3_layout.addWidget(export_button)
+        actions_layout.addStretch()
 
-        export_old_button = QPushButton("EXPORT-OLD")
-        export_old_button.setFixedSize(80, 25)
-        export_old_button.setFont(QFont("Arial", 8, QFont.Weight.Bold))
-        export_old_button.clicked.connect(lambda: self.export_data("OLD"))
-        control_row3_layout.addWidget(export_old_button)
+        # Admin Access
+        admin_label = QLabel("🔐 Admin:")
+        admin_label.setFont(QFont("Segoe UI", 9))
+        actions_layout.addWidget(admin_label)
 
-        export_esa_button = QPushButton("EXPORT ESA")
-        export_esa_button.setFixedSize(80, 25)
-        export_esa_button.setFont(QFont("Arial", 8, QFont.Weight.Bold))
-        export_esa_button.clicked.connect(lambda: self.export_data("ESA"))
-        control_row3_layout.addWidget(export_esa_button)
+        self.admin_pwd_edit = QLineEdit()
+        self.admin_pwd_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        self.admin_pwd_edit.setPlaceholderText("Password")
+        self.admin_pwd_edit.setFixedWidth(100)
+        actions_layout.addWidget(self.admin_pwd_edit)
 
-        control_row3_layout.addStretch()
+        # Export Buttons
+        export_btn = ModernButton("📤 Export", primary=True)
+        actions_layout.addWidget(export_btn)
 
-        refresh_button = QPushButton("REFRESH")
-        refresh_button.setFixedSize(80, 25)
-        refresh_button.setFont(QFont("Arial", 8, QFont.Weight.Bold))
-        refresh_button.clicked.connect(self.refresh_data)
-        control_row3_layout.addWidget(refresh_button)
+        export_old_btn = ModernButton("📂 Export Old")
+        actions_layout.addWidget(export_old_btn)
 
-        view_button = QPushButton("VIEW")
-        view_button.setFixedSize(80, 25)
-        view_button.setFont(QFont("Arial", 8, QFont.Weight.Bold))
-        view_button.clicked.connect(self.view_data)
-        control_row3_layout.addWidget(view_button)
+        view_btn = ModernButton("👁 View")
+        view_btn.clicked.connect(self.view_data)
+        actions_layout.addWidget(view_btn)
 
-        close_button = QPushButton("CLOSE")
-        close_button.setFixedSize(80, 25)
-        close_button.setFont(QFont("Arial", 8, QFont.Weight.Bold))
-        close_button.clicked.connect(self.close)
-        control_row3_layout.addWidget(close_button)
+        close_btn = ModernButton("✖ Close")
+        close_btn.clicked.connect(self.close)
+        actions_layout.addWidget(close_btn)
 
-        bottom_layout.addLayout(control_row3_layout)
+        layout.addLayout(actions_layout)
 
-        main_layout.addWidget(bottom_panel)
-
-    def setup_production_records_tab(self):
-        tab_widget = QWidget()
-        tab_layout = QVBoxLayout(tab_widget)
-        tab_layout.setContentsMargins(10, 10, 10, 10)
-        tab_layout.setSpacing(10)
-
-        # Top of the tab: LOT NO, TRADSPHERE INDUSTRIAL COMMODITIES, ID NUMBER, SEARCH
-        tab_header_layout = QHBoxLayout()
-        tab_header_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
-
-        lot_no_label = QLabel("LOT NO.:")
-        lot_no_label.setFont(QFont("Arial", 10, QFont.Weight.Bold))
-        tab_header_layout.addWidget(lot_no_label)
-
-        self.lot_no_value_label = QLabel("8024X - TRADSPHERE INDUSTRIAL COMMODITIES")
-        self.lot_no_value_label.setFont(QFont("Arial", 10, QFont.Weight.Bold))
-        self.lot_no_value_label.setStyleSheet("color: red;") # Red color as in screenshot
-        tab_header_layout.addWidget(self.lot_no_value_label)
-
-        id_number_label = QLabel("ID NUMBER")
-        id_number_label.setFont(QFont("Arial", 8))
-        tab_header_layout.addWidget(id_number_label)
-
-        self.id_number_entry = QLineEdit()
-        self.id_number_entry.setFixedSize(80, 20)
-        self.id_number_entry.textChanged.connect(self.on_id_search)
-        tab_header_layout.addWidget(self.id_number_entry)
-
-        search_tab_label = QLabel("SEARCH")
-        search_tab_label.setFont(QFont("Arial", 8))
-        tab_header_layout.addWidget(search_tab_label)
-
-        self.search_tab_entry = QLineEdit()
-        self.search_tab_entry.setPlaceholderText("SEARCH")
-        self.search_tab_entry.setFixedSize(120, 20)
-        self.search_tab_entry.textChanged.connect(self.on_tab_search)
-        tab_header_layout.addWidget(self.search_tab_entry)
-
-        tab_header_layout.addStretch() # Push everything to the left
-
-        tab_layout.addLayout(tab_header_layout)
-
-        # Main Table (Top) - Production Records
-        self.main_table = QTableWidget()
-        self.populate_main_table()
-        self.main_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.main_table.verticalHeader().setVisible(False)
-        self.main_table.setFont(QFont("Arial", 9))
-        self.main_table.setSortingEnabled(True)  # Enable sorting
-        self.main_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.main_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self.main_table.itemSelectionChanged.connect(self.on_table_selection_changed)
-        tab_layout.addWidget(self.main_table)
-
-        # VB Material Section (Bottom Table)
-        vb_layout = QHBoxLayout()
-
-        self.vb_table = QTableWidget()
-        self.populate_vb_table()
-        self.vb_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.vb_table.verticalHeader().setVisible(False)
-        self.vb_table.setFont(QFont("Arial", 8))
-        vb_layout.addWidget(self.vb_table)
-
-        tab_layout.addLayout(vb_layout)
-
-        # Icon placeholder (truck image)
-        icon_label = QLabel()
-        # icon_label.setPixmap(QPixmap("path/to/truck.png").scaled(50, 50, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
-        icon_label.setText("🚛") # Placeholder emoji for truck
-        icon_label.setFont(QFont("Arial", 30))
-        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        icon_label.setFixedSize(60, 60)
-        tab_layout.addWidget(icon_label, alignment=Qt.AlignmentFlag.AlignRight)
-
-        tab_layout.addStretch() # Push content up within the tab
-
-        # Add tab with icon
-        production_icon = icon('fa5s.industry', color='darkblue')
-        production_qicon = QIcon(production_icon.pixmap(16, 16))
-        self.tab_widget.addTab(tab_widget, production_qicon, "PRODUCTION RECORDS")
-
-    def setup_auto_generate_tab(self):
-        """Setup the Auto-Generate tab using the separate class."""
-        auto_tab = AutoGenerateTab(self.username, self.current_date)
-        generate_icon = icon('fa5s.cog', color='gray')
-        generate_qicon = QIcon(generate_icon.pixmap(16, 16))
-        self.tab_widget.addTab(auto_tab, generate_qicon, "AUTO-GENERATE PRODUCTION ENTRY")
-
-    def populate_main_table(self):
-        """Populate the main production table with data."""
-        self.main_table.setRowCount(len(self.production_data))
-        self.main_table.setColumnCount(6)
-        self.main_table.setHorizontalHeaderLabels(["DATE", "CUSTOMER", "PRODUCT CODE", "PRODUCT COLOR", "LOT NO.", "QTY. PRODUCED"])
-        for row, row_data in enumerate(self.production_data):
-            for col, item_data in enumerate(row_data):
-                item = QTableWidgetItem(str(item_data))
-                item.setFont(QFont("Arial", 9))
-                self.main_table.setItem(row, col, item)
-
-    def populate_vb_table(self):
-        """Populate the VB material table with data, including TOTAL LOSS column."""
-        self.vb_table.setRowCount(len(self.formulation_data))
-        self.vb_table.setColumnCount(6)
-        self.vb_table.setHorizontalHeaderLabels(["MATERIAL NAME", "LARGE SCALE (KG)", "SMALL SCALE (KG)", "TOTAL WEIGHT (KG)", "TOTAL LOSS (KG)", "TOTAL CONSUMPTION (KG)"])
-        for row, row_data in enumerate(self.formulation_data):
-            for col, item_data in enumerate(row_data):
-                item = QTableWidgetItem(str(item_data))
-                item.setFont(QFont("Arial", 8))
-                self.vb_table.setItem(row, col, item)
-
-    # Event Handlers
-    def on_search_changed(self, text):
-        """Handle global search."""
-        if len(text) > 2:  # Debounce-like
-            self.perform_search()
-
-    def perform_search(self):
-        """Perform search across tables."""
-        query = "ID NUMBER SEARCH"  # Placeholder
-        QMessageBox.information(self, "Search", f"Searching for: {query}")
-
-    def on_tab_search(self, text):
-        """Tab-specific search."""
-        # Implement filtering on main_table
-        pass
-
-    def on_id_search(self, text):
-        """ID number search."""
-        # Filter by ID
-        pass
-
-    def on_table_selection_changed(self):
-        """Handle table row selection."""
-        selected = self.main_table.selectedItems()
-        if selected:
-            row = selected[0].row()
-            if row < len(self.production_data):
-                self.lot_no_value_label.setText(self.production_data[row][4])  # Update lot no
-
-    def on_tab_changed(self, index):
-        """Handle tab change."""
-        self.statusBar().showMessage(f"Switched to tab: {self.tab_widget.tabText(index)}")
-
-    def on_checkbox_changed(self, state):
-        """Handle checkbox changes - refresh filters."""
-        self.refresh_data()
-
-    def on_date_changed(self, date):
-        """Handle date changes - filter data."""
-        self.refresh_data()
+        return panel
 
     def refresh_data(self):
-        """Refresh tables based on filters."""
-        # Simplified: repopulate
-        self.populate_main_table()
-        self.populate_vb_table()
-        self.statusBar().showMessage("Data refreshed.")
+        """Refresh tables."""
+        QMessageBox.information(self, "Refresh", "✅ Data refreshed successfully!")
 
     def view_data(self):
-        """Handle VIEW button - show detailed view."""
-        QMessageBox.information(self, "View", "Viewing selected data...")
-
-    def export_data(self, export_type):
-        """Handle export with password check if needed."""
-        password = self.export_password_entry.text()
-        if "OLD" in export_type and password != "admin":
-            QMessageBox.warning(self, "Access Denied", "Invalid admin password.")
-            return
-        # Simulate export
-        QMessageBox.information(self, "Export", f"Exported data as {export_type}")
+        """Handle VIEW button."""
+        QMessageBox.information(self, "View", "👁 Viewing selected production record...")
 
     def create_menu_bar(self):
         menu_bar = self.menuBar()
-        menu_bar.setFont(QFont("Arial", 9, QFont.Weight.Bold))
-        menu_bar.setStyleSheet("QMenuBar { background-color: #f0f0f0; color: #333333; }"
-                              "QMenuBar::item:selected { background-color: #d0d0d0; }"
-                              "QMenu { background-color: white; border: 1px solid #cccccc; }"
-                              "QMenu::item:selected { background-color: #2196F3; color: white; }")
+        menu_bar.setFont(QFont("Segoe UI", 9))
 
-        file_menu = menu_bar.addMenu("&FILE")
-        file_icon = icon('fa5s.folder-open', color='gray')
-        file_qicon = QIcon(file_icon.pixmap(16, 16))
-        file_menu.setIcon(file_qicon)
+        file_menu = menu_bar.addMenu("📁 File")
+        view_menu = menu_bar.addMenu("👁 View")
+        reports_menu = menu_bar.addMenu("📊 Reports")
+        utilities_menu = menu_bar.addMenu("🔧 Utilities")
+        archive_menu = menu_bar.addMenu("📦 Archive")
+        system_menu = menu_bar.addMenu("⚙ System")
 
-        view_menu = menu_bar.addMenu("&VIEW")
-        view_icon = icon('fa5s.eye', color='gray')
-        view_qicon = QIcon(view_icon.pixmap(16, 16))
-        view_menu.setIcon(view_qicon)
-
-        reports_menu = menu_bar.addMenu("&REPORTS")
-        reports_icon = icon('fa5s.file-alt', color='gray')
-        reports_qicon = QIcon(reports_icon.pixmap(16, 16))
-        reports_menu.setIcon(reports_qicon)
-
-        utilities_menu = menu_bar.addMenu("&UTILITIES")
-        utilities_icon = icon('fa5s.wrench', color='gray')
-        utilities_qicon = QIcon(utilities_icon.pixmap(16, 16))
-        utilities_menu.setIcon(utilities_qicon)
-
-        archive_menu = menu_bar.addMenu("&ARCHIVE")
-        archive_icon = icon('fa5s.archive', color='gray')
-        archive_qicon = QIcon(archive_icon.pixmap(16, 16))
-        archive_menu.setIcon(archive_qicon)
-
-        system_menu = menu_bar.addMenu("&SYSTEM")
-        system_icon = icon('fa5s.cogs', color='gray')
-        system_qicon = QIcon(system_icon.pixmap(16, 16))
-        system_menu.setIcon(system_qicon)
-
-        # Add actions with icons
-        production_action = view_menu.addAction("PRODUCTION RECORDS")
-        production_action_icon = icon('fa5s.industry', color='darkblue')
-        production_action_icon_q = QIcon(production_action_icon.pixmap(16, 16))
-        production_action.setIcon(production_action_icon_q)
-        production_action.triggered.connect(lambda: self.tab_widget.setCurrentIndex(0))
-
-        auto_gen_action = view_menu.addAction("AUTO-GENERATE")
-        auto_gen_icon = icon('fa5s.cog', color='gray')
-        auto_gen_icon_q = QIcon(auto_gen_icon.pixmap(16, 16))
-        auto_gen_action.setIcon(auto_gen_icon_q)
-        auto_gen_action.triggered.connect(lambda: self.tab_widget.setCurrentIndex(1))
-
-        reports_menu.addAction("EXPORT REPORTS")
-
-        utilities_menu.addAction("SYSTEM UTILITIES")
-
-        archive_menu.addAction("VIEW ARCHIVES")
-
-        system_menu.addAction("USER SETTINGS")
-
+        # File menu actions
+        file_menu.addAction("New Production Entry")
+        file_menu.addAction("Open...")
         file_menu.addSeparator()
-        exit_action = file_menu.addAction("EXIT")
-        exit_icon = icon('fa5s.sign-out-alt', color='red')
-        exit_icon_q = QIcon(exit_icon.pixmap(16, 16))
-        exit_action.setIcon(exit_icon_q)
+        exit_action = file_menu.addAction("Exit")
         exit_action.triggered.connect(self.close)
 
+        # View menu actions
+        view_menu.addAction("Production Records")
+        view_menu.addAction("Auto-Generate")
+        view_menu.addSeparator()
+        view_menu.addAction("Dashboard")
+
+        reports_menu.addAction("Export Reports")
+        reports_menu.addAction("Generate Summary")
+
+        utilities_menu.addAction("System Utilities")
+        utilities_menu.addAction("Data Management")
+
+        archive_menu.addAction("View Archives")
+        archive_menu.addAction("Restore Data")
+
+        system_menu.addAction("User Settings")
+        system_menu.addAction("Preferences")
+
     def create_status_bar(self):
-        self.statusBar().setFont(QFont("Arial", 8))
-        self.statusBar().setStyleSheet("QStatusBar { background-color: #f0f0f0; color: #555555; border-top: 1px solid #e0e0e0; }")
-        self.statusBar().showMessage("MBPI SYSTEM 2025 NUM")  # Updated year
+        status = self.statusBar()
+        status.setFont(QFont("Segoe UI", 9))
+        status.showMessage("✅ Ready | MBPI System 2025")
 
     def apply_styles(self):
         self.setStyleSheet("""
             QMainWindow {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                                            stop:0 #c7e0f2, stop:0.3 #e0f2f7, stop:0.7 #f0f8ff, stop:1 #e0f2f7);
+                background-color: #F5F7FA;
             }
-            QWidget { /* Default for all widgets, can be overridden */
-                font-family: Arial;
-                font-size: 9pt;
-                color: #333333;
-            }
-            #header_widget {
-                background-color: #f0f0f0;
-                border-bottom: 1px solid #cccccc;
-            }
-            QTabWidget::pane { /* The widget area below the tabs */
-                border: 1px solid #a0a0a0;
-                background-color: white;
-            }
-            QTabBar::tab {
-                background: #e0e0e0;
-                border: 1px solid #a0a0a0;
-                border-bottom-color: #a0a0a0; /* same as pane border */
-                border-top-left-radius: 4px;
-                border-top-right-radius: 4px;
-                min-width: 8ex;
-                padding: 5px 10px;
-                font-weight: bold;
-                color: #555555;
-            }
-            QTabBar::tab:selected {
-                background: white;
-                border-bottom-color: white; /* Make the selected tab 'blend' with the pane */
-                color: #2196F3;
-            }
-            QTabBar::tab:hover:!selected {
-                background: #d0d0d0;
-            }
-            QTableWidget {
-                border: 1px solid #cccccc;
-                gridline-color: #e0e0e0;
-                background-color: white;
-                selection-background-color: #b0e0e6; /* Light blue selection */
-                selection-color: black;
-                alternate-background-color: #f9f9f9;
-            }
-            QTableWidget::item {
-                padding: 3px;
-            }
-            QTableWidget::item:selected {
-                background-color: #b0e0e6;
-            }
-            QTableWidget QHeaderView::section {
-                background-color: #f0f0f0;
-                border: 1px solid #cccccc;
-                padding: 4px;
-                font-weight: bold;
-                color: #555555;
-            }
-            QLineEdit {
-                border: 1px solid #cccccc;
-                border-radius: 3px;
-                padding: 3px;
-                background-color: #f8f8f8;
-            }
-            QLineEdit:focus {
-                border: 1px solid #2196F3;
-                background-color: #e3f2fd;
-            }
-            QDateEdit {
-                border: 1px solid #cccccc;
-                border-radius: 3px;
-                padding: 3px;
-                background-color: #f8f8f8;
-            }
-            QDateEdit:focus {
-                border: 1px solid #2196F3;
-                background-color: #e3f2fd;
-            }
-            QPushButton {
-                background-color: #0078d7; /* Windows blue */
-                color: white;
+
+            #headerFrame {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #1976D2, stop:0.5 #2196F3, stop:1 #42A5F5);
                 border: none;
-                border-radius: 4px;
-                padding: 5px 10px;
-                font-weight: bold;
             }
-            QPushButton:hover {
-                background-color: #0056a0;
+
+            #card {
+                background-color: white;
+                border-radius: 12px;
+                border: 1px solid #E0E0E0;
             }
-            QPushButton:pressed {
-                background-color: #003d7a;
+
+            #sidePanel {
+                background-color: transparent;
             }
-            QCheckBox {
-                spacing: 5px;
+
+            #statsCard {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #E3F2FD, stop:1 #BBDEFB);
+                border-radius: 12px;
+                border: none;
             }
-            QCheckBox::indicator {
-                width: 13px;
-                height: 13px;
-                border: 1px solid #808080;
-                border-radius: 2px;
+
+            QLineEdit {
+                background-color: #F5F5F5;
+                border: 2px solid #E0E0E0;
+                border-radius: 8px;
+                padding: 8px 12px;
+                font-size: 9pt;
+                font-family: 'Segoe UI';
+            }
+
+            QLineEdit:focus {
+                border: 2px solid #2196F3;
                 background-color: white;
             }
+
+            QDateEdit {
+                background-color: #F5F5F5;
+                border: 2px solid #E0E0E0;
+                border-radius: 8px;
+                padding: 6px 10px;
+                font-size: 9pt;
+                font-family: 'Segoe UI';
+            }
+
+            QDateEdit:focus {
+                border: 2px solid #2196F3;
+                background-color: white;
+            }
+
+            QDateEdit::drop-down {
+                border: none;
+                padding-right: 5px;
+            }
+
+            QCheckBox {
+                font-size: 9pt;
+                font-family: 'Segoe UI';
+                spacing: 8px;
+                color: #424242;
+            }
+
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+                border-radius: 4px;
+                border: 2px solid #BDBDBD;
+                background-color: white;
+            }
+
+            QCheckBox::indicator:hover {
+                border-color: #2196F3;
+            }
+
             QCheckBox::indicator:checked {
                 background-color: #2196F3;
-                border: 1px solid #2196F3;
+                border-color: #2196F3;
                 image: none;
+            }
+
+            QTableWidget {
+                background-color: white;
+                gridline-color: #F0F0F0;
+                border: none;
+                border-radius: 8px;
+            }
+
+            QTableWidget::item {
+                padding: 8px;
+                border: none;
+            }
+
+            QTableWidget::item:selected {
+                background-color: #E3F2FD;
+                color: #1976D2;
+            }
+
+            QTableWidget::item:alternate {
+                background-color: #FAFAFA;
+            }
+
+            QHeaderView::section {
+                background-color: #F5F5F5;
+                color: #616161;
+                padding: 8px;
+                border: none;
+                border-bottom: 2px solid #E0E0E0;
+                font-weight: bold;
+            }
+
+            QMenuBar {
+                background-color: white;
+                border-bottom: 1px solid #E0E0E0;
+                padding: 4px;
+                font-family: 'Segoe UI';
+            }
+
+            QMenuBar::item {
+                padding: 6px 12px;
+                background-color: transparent;
+                border-radius: 4px;
+            }
+
+            QMenuBar::item:selected {
+                background-color: #E3F2FD;
+                color: #1976D2;
+            }
+
+            QMenu {
+                background-color: white;
+                border: 1px solid #E0E0E0;
+                border-radius: 8px;
+                padding: 5px;
+            }
+
+            QMenu::item {
+                padding: 8px 25px;
+                border-radius: 4px;
+            }
+
+            QMenu::item:selected {
+                background-color: #E3F2FD;
+                color: #1976D2;
+            }
+
+            QStatusBar {
+                background-color: white;
+                border-top: 1px solid #E0E0E0;
+                color: #757575;
+            }
+
+            QScrollBar:vertical {
+                background-color: #F5F5F5;
+                width: 12px;
+                border-radius: 6px;
+            }
+
+            QScrollBar::handle:vertical {
+                background-color: #BDBDBD;
+                border-radius: 6px;
+                min-height: 20px;
+            }
+
+            QScrollBar::handle:vertical:hover {
+                background-color: #9E9E9E;
+            }
+
+            QTabWidget::pane {
+                border: 1px solid #E0E0E0;
+                background-color: #F5F7FA;
+            }
+
+            QTabBar::tab {
+                background-color: #F5F5F5;
+                padding: 8px 16px;
+                border: 1px solid #E0E0E0;
+                border-bottom: none;
+                font-family: 'Segoe UI';
+                font-size: 9pt;
+            }
+
+            QTabBar::tab:selected {
+                background-color: white;
+                border-top: 2px solid #2196F3;
+            }
+
+            QTabBar::tab:hover {
+                background-color: #E3F2FD;
+            }
+
+            QComboBox {
+                background-color: #F5F5F5;
+                border: 2px solid #E0E0E0;
+                border-radius: 8px;
+                padding: 6px 10px;
+                font-size: 9pt;
+                font-family: 'Segoe UI';
+                min-height: 24px;
+            }
+
+            QComboBox:focus {
+                border: 2px solid #2196F3;
+                background-color: white;
+            }
+
+            QComboBox::drop-down {
+                border: none;
+                width: 20px;
+            }
+
+            QTextEdit {
+                background-color: #FAFAFA;
+                border: 1px solid #E0E0E0;
+                border-radius: 4px;
+                padding: 4px;
+                font-size: 9pt;
+                font-family: 'Segoe UI';
             }
         """)
 
-    # Event Handlers (kept in main for now, but can be moved if needed)
-    def on_search_changed(self, text):
-        """Handle global search."""
-        if len(text) > 2:  # Debounce-like
-            self.perform_search()
-
-    def perform_search(self):
-        """Perform search across tables."""
-        query = "ID NUMBER SEARCH"  # Placeholder
-        QMessageBox.information(self, "Search", f"Searching for: {query}")
-
-    def on_tab_search(self, text):
-        """Tab-specific search."""
-        # Implement filtering on main_table
-        pass
-
-    def on_id_search(self, text):
-        """ID number search."""
-        # Filter by ID
-        pass
-
-    def on_table_selection_changed(self):
-        """Handle table row selection."""
-        selected = self.main_table.selectedItems()
-        if selected:
-            row = selected[0].row()
-            if row < len(self.production_data):
-                self.lot_no_value_label.setText(self.production_data[row][4])  # Update lot no
-
-    def on_tab_changed(self, index):
-        """Handle tab change."""
-        self.statusBar().showMessage(f"Switched to tab: {self.tab_widget.tabText(index)}")
-
-    def on_checkbox_changed(self, state):
-        """Handle checkbox changes - refresh filters."""
-        self.refresh_data()
-
-    def on_date_changed(self, date):
-        """Handle date changes - filter data."""
-        self.refresh_data()
-
-    def refresh_data(self):
-        """Refresh tables based on filters."""
-        # Simplified: repopulate
-        self.populate_main_table()
-        self.populate_vb_table()
-        self.statusBar().showMessage("Data refreshed.")
-
-    def view_data(self):
-        """Handle VIEW button - show detailed view."""
-        QMessageBox.information(self, "View", "Viewing selected data...")
-
-    def export_data(self, export_type):
-        """Handle export with password check if needed."""
-        password = self.export_password_entry.text()
-        if "OLD" in export_type and password != "admin":
-            QMessageBox.warning(self, "Access Denied", "Invalid admin password.")
-            return
-        # Simulate export
-        QMessageBox.information(self, "Export", f"Exported data as {export_type}")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = MainApplicationWindow(username="Admin")  # Simulate logged-in user
+
+    # Set application-wide font
+    app.setFont(QFont("Segoe UI", 9))
+
+    window = MainApplicationWindow(username="Admin")
     window.show()
     sys.exit(app.exec())
