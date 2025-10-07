@@ -525,20 +525,21 @@ class MainApplicationWindow(QMainWindow):
         """Create modern header with gradient."""
         header = QFrame()
         header.setObjectName("headerFrame")
-        header.setFixedHeight(80)
+        header.setFixedHeight(60)
 
         layout = QHBoxLayout(header)
-        layout.setContentsMargins(30, 10, 30, 10)
+        layout.setContentsMargins(20, 5, 20, 5)
 
         # Left: Logo and Title
         left_layout = QVBoxLayout()
+        left_layout.setSpacing(2)
         title = QLabel("Production Management")
-        title.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
+        title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
         title.setStyleSheet("color: white;")
         left_layout.addWidget(title)
 
         subtitle = QLabel("Auto Generate Records - With Consumption")
-        subtitle.setFont(QFont("Segoe UI", 10))
+        subtitle.setFont(QFont("Segoe UI", 9))
         subtitle.setStyleSheet("color: rgba(255, 255, 255, 0.8);")
         left_layout.addWidget(subtitle)
 
@@ -551,28 +552,21 @@ class MainApplicationWindow(QMainWindow):
             QFrame {
                 background-color: rgba(255, 255, 255, 0.15);
                 border-radius: 8px;
-                padding: 5px 15px;
+                padding: 3px 10px;
             }
         """)
         user_layout = QHBoxLayout(user_frame)
-        user_layout.setSpacing(10)
+        user_layout.setSpacing(8)
 
         user_icon = QLabel("👤")
-        user_icon.setFont(QFont("Segoe UI", 16))
+        user_icon.setFont(QFont("Segoe UI", 14))
         user_layout.addWidget(user_icon)
 
-        user_info = QVBoxLayout()
         user_name = QLabel(self.username)
-        user_name.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        user_name.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
         user_name.setStyleSheet("color: white;")
-        user_info.addWidget(user_name)
+        user_layout.addWidget(user_name)
 
-        user_date = QLabel(self.current_date)
-        user_date.setFont(QFont("Segoe UI", 8))
-        user_date.setStyleSheet("color: rgba(255, 255, 255, 0.7);")
-        user_info.addWidget(user_date)
-
-        user_layout.addLayout(user_info)
         layout.addWidget(user_frame)
 
         return header
@@ -630,14 +624,9 @@ class MainApplicationWindow(QMainWindow):
         layout.setSpacing(10)
 
         # Header
-        header_layout = QHBoxLayout()
         title = QLabel("📊 Production Records")
         title.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        header_layout.addWidget(title)
-
-        header_layout.addStretch()
-
-        layout.addLayout(header_layout)
+        layout.addWidget(title)
 
         # Table
         self.production_table = QTableWidget()
