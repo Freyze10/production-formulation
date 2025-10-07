@@ -1,3 +1,4 @@
+# main_window.py
 import sys
 from datetime import datetime
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -8,6 +9,11 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QH
 from PyQt6.QtCore import Qt, QSize, QDate
 from PyQt6.QtGui import QFont, QColor, QPixmap, QIcon
 from qtawesome import icon  # QtAwesome for Font Awesome icons
+
+from production_tab.Auto_generate import AutoGenerateTab
+
+
+# Import the separate tab class
 
 class MainApplicationWindow(QMainWindow):
     def __init__(self, username="User"):
@@ -328,6 +334,13 @@ class MainApplicationWindow(QMainWindow):
         production_qicon = QIcon(production_icon.pixmap(16, 16))
         self.tab_widget.addTab(tab_widget, production_qicon, "PRODUCTION RECORDS")
 
+    def setup_auto_generate_tab(self):
+        """Setup the Auto-Generate tab using the separate class."""
+        auto_tab = AutoGenerateTab(self.username, self.current_date)
+        generate_icon = icon('fa5s.cog', color='gray')
+        generate_qicon = QIcon(generate_icon.pixmap(16, 16))
+        self.tab_widget.addTab(auto_tab, generate_qicon, "AUTO-GENERATE PRODUCTION ENTRY")
+
     def populate_main_table(self):
         """Populate the main production table with data."""
         self.main_table.setRowCount(len(self.production_data))
@@ -349,47 +362,6 @@ class MainApplicationWindow(QMainWindow):
                 item = QTableWidgetItem(str(item_data))
                 item.setFont(QFont("Arial", 8))
                 self.vb_table.setItem(row, col, item)
-
-    def setup_auto_generate_tab(self):
-        """Setup the Auto-Generate tab with sample content."""
-        tab_widget = QWidget()
-        tab_layout = QVBoxLayout(tab_widget)
-        tab_layout.setContentsMargins(10, 10, 10, 10)
-
-        # Sample form for auto-generate
-        auto_title = QLabel("AUTO-GENERATE PRODUCTION ENTRY")
-        auto_title.setFont(QFont("Arial", 14, QFont.Weight.Bold))
-        auto_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        tab_layout.addWidget(auto_title)
-
-        # Fields for auto-generate (example)
-        fields_layout = QVBoxLayout()
-        customer_label = QLabel("Customer:")
-        customer_label.setFont(QFont("Arial", 10))
-        fields_layout.addWidget(customer_label)
-        customer_combo = QLineEdit()  # Simplified to LineEdit for entry
-        customer_combo.setPlaceholderText("Enter Customer Name")
-        fields_layout.addWidget(customer_combo)
-
-        qty_label = QLabel("Quantity:")
-        qty_label.setFont(QFont("Arial", 10))
-        fields_layout.addWidget(qty_label)
-        qty_entry = QLineEdit()
-        qty_entry.setPlaceholderText("Enter Quantity Produced")
-        fields_layout.addWidget(qty_entry)
-
-        generate_btn = QPushButton("GENERATE ENTRY")
-        generate_btn.setFont(QFont("Arial", 10, QFont.Weight.Bold))
-        generate_btn.clicked.connect(self.generate_entry)
-        fields_layout.addWidget(generate_btn)
-
-        tab_layout.addLayout(fields_layout)
-        tab_layout.addStretch()
-
-        # Add tab with icon
-        generate_icon = icon('fa5s.cog', color='gray')
-        generate_qicon = QIcon(generate_icon.pixmap(16, 16))
-        self.tab_widget.addTab(tab_widget, generate_qicon, "AUTO-GENERATE PRODUCTION ENTRY")
 
     # Event Handlers
     def on_search_changed(self, text):
@@ -451,10 +423,6 @@ class MainApplicationWindow(QMainWindow):
             return
         # Simulate export
         QMessageBox.information(self, "Export", f"Exported data as {export_type}")
-
-    def generate_entry(self):
-        """Generate new production entry."""
-        QMessageBox.information(self, "Generate", "New entry generated!")
 
     def create_menu_bar(self):
         menu_bar = self.menuBar()
@@ -636,6 +604,67 @@ class MainApplicationWindow(QMainWindow):
                 image: none;
             }
         """)
+
+    # Event Handlers (kept in main for now, but can be moved if needed)
+    def on_search_changed(self, text):
+        """Handle global search."""
+        if len(text) > 2:  # Debounce-like
+            self.perform_search()
+
+    def perform_search(self):
+        """Perform search across tables."""
+        query = "ID NUMBER SEARCH"  # Placeholder
+        QMessageBox.information(self, "Search", f"Searching for: {query}")
+
+    def on_tab_search(self, text):
+        """Tab-specific search."""
+        # Implement filtering on main_table
+        pass
+
+    def on_id_search(self, text):
+        """ID number search."""
+        # Filter by ID
+        pass
+
+    def on_table_selection_changed(self):
+        """Handle table row selection."""
+        selected = self.main_table.selectedItems()
+        if selected:
+            row = selected[0].row()
+            if row < len(self.production_data):
+                self.lot_no_value_label.setText(self.production_data[row][4])  # Update lot no
+
+    def on_tab_changed(self, index):
+        """Handle tab change."""
+        self.statusBar().showMessage(f"Switched to tab: {self.tab_widget.tabText(index)}")
+
+    def on_checkbox_changed(self, state):
+        """Handle checkbox changes - refresh filters."""
+        self.refresh_data()
+
+    def on_date_changed(self, date):
+        """Handle date changes - filter data."""
+        self.refresh_data()
+
+    def refresh_data(self):
+        """Refresh tables based on filters."""
+        # Simplified: repopulate
+        self.populate_main_table()
+        self.populate_vb_table()
+        self.statusBar().showMessage("Data refreshed.")
+
+    def view_data(self):
+        """Handle VIEW button - show detailed view."""
+        QMessageBox.information(self, "View", "Viewing selected data...")
+
+    def export_data(self, export_type):
+        """Handle export with password check if needed."""
+        password = self.export_password_entry.text()
+        if "OLD" in export_type and password != "admin":
+            QMessageBox.warning(self, "Access Denied", "Invalid admin password.")
+            return
+        # Simulate export
+        QMessageBox.information(self, "Export", f"Exported data as {export_type}")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
